@@ -131,6 +131,9 @@ var (
 	// BloomBitsIndexPrefix is the data table of a chain indexer to track its progress
 	BloomBitsIndexPrefix = []byte("iB")
 
+	// snapshot journal
+	snapshotJournal2Prefix = []byte("s-j") // snapshotJournalPrefix + root hash -> snapshot journal
+
 	ChtPrefix           = []byte("chtRootV2-") // ChtPrefix + chtNum (uint64 big endian) -> trie root hash
 	ChtTablePrefix      = []byte("cht-")
 	ChtIndexTablePrefix = []byte("chtIndexV2-")
@@ -345,4 +348,9 @@ func ResolveStorageTrieNode(key []byte) (bool, common.Hash, []byte) {
 func IsStorageTrieNode(key []byte) bool {
 	ok, _, _ := ResolveStorageTrieNode(key)
 	return ok
+}
+
+// snapshotJournal2Key = SnapshotJournalPrefix + hash
+func snapshotJournal2Key(hash common.Hash) []byte {
+	return append(append(snapshotJournal2Prefix, hash.Bytes()...))
 }

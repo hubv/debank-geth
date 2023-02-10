@@ -34,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/repl"
 )
 
 // FullNodeGPO contains default gasprice oracle settings for full node.
@@ -140,6 +141,12 @@ type Config struct {
 
 	// RPCGasCap is the global gas cap for eth-call variants.
 	RPCGasCap uint64
+
+	// Rpl
+	Rpl repl.Config
+
+	// RPCCache is the cache setting for eth_call/eth_multiCall
+	RPCCache uint64
 
 	// RPCEVMTimeout is the global timeout for eth-call.
 	RPCEVMTimeout time.Duration

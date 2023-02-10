@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"net/http"
 	"runtime"
 	"sync"
 
@@ -55,6 +56,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/dnsdisc"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/repl"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	gethversion "github.com/ethereum/go-ethereum/version"
@@ -122,6 +124,23 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	}
 	log.Info("Allocated trie memory caches", "clean", common.StorageSize(config.TrieCleanCache)*1024*1024, "dirty", common.StorageSize(config.TrieDirtyCache)*1024*1024)
 
+	repl.Cfg = &config.Rpl
+	log.Info("cfg", "cfg", config.Rpl)
+	if repl.Cfg.IsWriter {
+		err := repl.InitreplWriter()
+		if err != nil {
+			log.Error("InitreplWriter", "err", err)
+			return nil, err
+		}
+	}
+	metricAddress := repl.Cfg.MetricAddress
+	if metricAddress == "" {
+		metricAddress = ":10086"
+	}
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(metricAddress, nil)
+	}()
 	// Assemble the Ethereum object
 	chainDb, err := stack.OpenDatabaseWithFreezer("chaindata", config.DatabaseCache, config.DatabaseHandles, config.DatabaseFreezer, "eth/db/chaindata/", false)
 	if err != nil {
@@ -216,6 +235,13 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	}
 	if config.OverrideVerkle != nil {
 		overrides.OverrideVerkle = config.OverrideVerkle
+	}
+	if repl.Cfg.IsWriter {
+		err := repl.Writer.Recovery()
+		if err != nil {
+			log.Error("Recovery", "err", err)
+			return nil, err
+		}
 	}
 	eth.blockchain, err = core.NewBlockChain(chainDb, cacheConfig, config.Genesis, &overrides, eth.engine, vmConfig, &config.TransactionHistory)
 	if err != nil {

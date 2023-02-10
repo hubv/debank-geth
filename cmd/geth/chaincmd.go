@@ -40,6 +40,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/repl"
 	"github.com/urfave/cli/v2"
 )
 
@@ -152,6 +154,17 @@ from Era archives.
 The export-history command will export blocks and their corresponding receipts
 into Era archives. Eras are typically packaged in steps of 8192 blocks.
 `,
+	repairCommand = &cli.Command{
+		Action:    repairChain,
+		Name:      "repair",
+		Usage:     "repair blockchain",
+		ArgsUsage: "",
+		Flags: flags.Merge([]cli.Flag{
+			utils.CacheFlag,
+			utils.SyncModeFlag,
+		}, utils.DatabasePathFlags),
+		Description: `
+Repair the blockchain database.`,
 	}
 	importPreimagesCommand = &cli.Command{
 		Action:    importPreimages,
@@ -355,6 +368,25 @@ func importChain(ctx *cli.Context) error {
 
 	showDBStats(db)
 	return importErr
+}
+
+func repairChain(ctx *cli.Context) error {
+	stack, _ := makeConfigNode(ctx)
+	defer stack.Close()
+
+	repl.Cfg = &repl.Config{
+		IsWriter: true,
+	}
+	err := repl.InitreplWriter()
+	if err != nil {
+		utils.Fatalf("InitreplWriter %v", err)
+		return err
+	}
+
+	chain, _ := utils.MakeChain(ctx, stack, false)
+	chain.Stop()
+	fmt.Printf("Repairing chain at %s\n", chain.CurrentBlock().Hash().Hex())
+	return nil
 }
 
 func exportChain(ctx *cli.Context) error {

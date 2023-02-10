@@ -194,7 +194,7 @@ type Tree struct {
 //     a background thread.
 func New(config Config, diskdb ethdb.KeyValueStore, triedb *triedb.Database, root common.Hash) (*Tree, error) {
 	// Create a new, empty snapshot tree
-	snap := &Tree{
+	snap = &Tree{
 		config: config,
 		diskdb: diskdb,
 		triedb: triedb,
@@ -428,6 +428,7 @@ func (t *Tree) Cap(root common.Hash, layers int) error {
 	}
 	// If the disk layer was modified, regenerate all the cumulative blooms
 	if persisted != nil {
+		log.Info("snapshot write diskroot", "root", persisted.root)
 		var rebloom func(root common.Hash)
 		rebloom = func(root common.Hash) {
 			if diff, ok := t.layers[root].(*diffLayer); ok {
@@ -487,7 +488,8 @@ func (t *Tree) cap(diff *diffLayer, layers int) *diskLayer {
 			t.onFlatten()
 		}
 		diff.parent = flattened
-		if flattened.memory < aggregatorMemoryLimit {
+		log.Info("Snapshot flattened", "root", flattened.root, "mergeLayers", flattened.mergeLayers, "memory", flattened.memory, "aggregatorMemoryLimi", aggregatorMemoryLimit)
+		if flattened.memory < aggregatorMemoryLimit || flattened.mergeLayers < 128 {
 			// Accumulator layer is smaller than the limit, so we can abort, unless
 			// there's a snapshot being generated currently. In that case, the trie
 			// will move from underneath the generator so we **must** merge all the
