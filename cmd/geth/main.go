@@ -221,6 +221,7 @@ func init() {
 		exportCommand,
 		importHistoryCommand,
 		exportHistoryCommand,
+		repairCommand,
 		importPreimagesCommand,
 		removedbCommand,
 		dumpCommand,
