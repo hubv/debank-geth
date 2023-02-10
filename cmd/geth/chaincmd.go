@@ -40,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/repl"
 	"github.com/urfave/cli/v2"
 )
 
@@ -355,6 +356,25 @@ func importChain(ctx *cli.Context) error {
 
 	showDBStats(db)
 	return importErr
+}
+
+func repairChain(ctx *cli.Context) error {
+	stack, _ := makeConfigNode(ctx)
+	defer stack.Close()
+
+	repl.Cfg = &repl.Config{
+		IsWriter: true,
+	}
+	err := repl.InitreplWriter()
+	if err != nil {
+		utils.Fatalf("InitreplWriter %v", err)
+		return err
+	}
+
+	chain, _ := utils.MakeChain(ctx, stack, false)
+	chain.Stop()
+	fmt.Printf("Repairing chain at %s\n", chain.CurrentBlock().Hash().Hex())
+	return nil
 }
 
 func exportChain(ctx *cli.Context) error {
