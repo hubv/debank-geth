@@ -55,7 +55,7 @@ import (
 	"github.com/ethereum/go-ethereum/triedb/hashdb"
 	"github.com/ethereum/go-ethereum/triedb/pathdb"
 
-	"github.com/DeBankDeFi/db-replicator/pkg/reader"
+	"github.com/DeBankDeFi/nodex/pkg/reader"
 )
 
 var (
