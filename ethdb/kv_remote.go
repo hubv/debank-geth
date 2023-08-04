@@ -82,7 +82,7 @@ func (db *remoteDB) NewIterator(prefix []byte, start []byte) Iterator {
 }
 
 func (db *remoteDB) Stat() (string, error) {
-	return db.db.Stat()
+	return "", nil
 }
 
 func (db *remoteDB) Compact(start []byte, limit []byte) error {

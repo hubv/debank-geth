@@ -1,7 +1,7 @@
 package leveldb
 
 import (
-	rdb "github.com/DeBankDeFi/db-replicator/pkg/db"
+	rdb "github.com/DeBankDeFi/nodex/pkg/db"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
@@ -92,10 +92,18 @@ func (db *wrapDB) NewIteratorWithRange(start []byte, limit []byte) (rdb.Iterator
 	return db.db.db.NewIterator(&util.Range{Start: start, Limit: limit}, nil), nil
 }
 
+func (db *wrapDB) NewSnapshot() (rdb.Snapshot, error) {
+	panic("not implemented")
+}
+
 func (db *wrapDB) Compact(start []byte, limit []byte) error {
 	return db.db.Compact(start, limit)
 }
 
 func (db *wrapDB) Stats() (map[string]string, error) {
 	panic("not implemented")
+}
+
+func (db *wrapDB) Stat(property string) (string, error) {
+	return db.db.Stat()
 }
