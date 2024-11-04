@@ -84,8 +84,9 @@ func InitDatabaseFromFreezer(db ethdb.Database) {
 }
 
 type blockTxHashes struct {
-	number uint64
-	hashes []common.Hash
+	number    uint64
+	blockHash common.Hash
+	hashes    []common.Hash
 }
 
 // iterateTransactions iterates over all transactions in the (canon) block
@@ -96,6 +97,7 @@ func iterateTransactions(db ethdb.Database, from uint64, to uint64, reverse bool
 	// One thread sequentially reads data from db
 	type numberRlp struct {
 		number uint64
+		hash   common.Hash
 		rlp    rlp.RawValue
 	}
 	if to == from {
@@ -118,9 +120,10 @@ func iterateTransactions(db ethdb.Database, from uint64, to uint64, reverse bool
 		defer close(rlpCh)
 		for n != end {
 			data := ReadCanonicalBodyRLP(db, n)
+			hash := ReadCanonicalHash(db, n)
 			// Feed the block to the aggregator, or abort on interrupt
 			select {
-			case rlpCh <- &numberRlp{n, data}:
+			case rlpCh <- &numberRlp{n, hash, data}:
 			case <-interrupt:
 				return
 			}
@@ -152,8 +155,9 @@ func iterateTransactions(db ethdb.Database, from uint64, to uint64, reverse bool
 				hashes = append(hashes, tx.Hash())
 			}
 			result := &blockTxHashes{
-				hashes: hashes,
-				number: data.number,
+				hashes:    hashes,
+				blockHash: data.hash,
+				number:    data.number,
 			}
 			// Feed the block to the aggregator, or abort on interrupt
 			select {
@@ -274,7 +278,7 @@ func indexTransactionsForTesting(db ethdb.Database, from uint64, to uint64, inte
 //
 // There is a passed channel, the whole procedure will be interrupted if any
 // signal received.
-func unindexTransactions(db ethdb.Database, from uint64, to uint64, interrupt chan struct{}, hook func(uint64) bool, report bool) {
+func unindexTransactions(db ethdb.Database, from uint64, to uint64, interrupt chan struct{}, hook func(uint64) bool, report, unindexBlock bool) {
 	// short circuit for invalid range
 	if from >= to {
 		return
@@ -308,6 +312,10 @@ func unindexTransactions(db ethdb.Database, from uint64, to uint64, interrupt ch
 			nextNum = delivery.number + 1
 			DeleteTxLookupEntries(batch, delivery.hashes)
 			txs += len(delivery.hashes)
+			// Delete all about the block
+			if unindexBlock && delivery.number != 0 { // never delete the genesis block
+				DeleteBlock(batch, delivery.blockHash, delivery.number)
+			}
 			blocks++
 
 			// If enough data was accumulated in memory or we're at the last block, dump to disk
@@ -353,11 +361,11 @@ func unindexTransactions(db ethdb.Database, from uint64, to uint64, interrupt ch
 //
 // There is a passed channel, the whole procedure will be interrupted if any
 // signal received.
-func UnindexTransactions(db ethdb.Database, from uint64, to uint64, interrupt chan struct{}, report bool) {
-	unindexTransactions(db, from, to, interrupt, nil, report)
+func UnindexTransactions(db ethdb.Database, from uint64, to uint64, interrupt chan struct{}, report, unindexBlock bool) {
+	unindexTransactions(db, from, to, interrupt, nil, report, unindexBlock)
 }
 
 // unindexTransactionsForTesting is the internal debug version with an additional hook.
 func unindexTransactionsForTesting(db ethdb.Database, from uint64, to uint64, interrupt chan struct{}, hook func(uint64) bool) {
-	unindexTransactions(db, from, to, interrupt, hook, false)
+	unindexTransactions(db, from, to, interrupt, hook, false, false)
 }

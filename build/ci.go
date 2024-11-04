@@ -60,6 +60,10 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
+const (
+	PackagePrefix = "github.com/ethereum/go-ethereum"
+)
+
 var (
 	// Files that end up in the geth*.zip archive.
 	gethArchiveFiles = []string{

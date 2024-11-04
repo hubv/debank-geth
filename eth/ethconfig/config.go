@@ -34,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/txtrace"
 )
 
 // FullNodeGPO contains default gasprice oracle settings for full node.
@@ -111,6 +112,7 @@ type Config struct {
 	DatabaseHandles    int  `toml:"-"`
 	DatabaseCache      int
 	DatabaseFreezer    string
+	AncientPrune       bool
 
 	TrieCleanCache int
 	TrieDirtyCache int
@@ -128,6 +130,9 @@ type Config struct {
 	TxPool   legacypool.Config
 	BlobPool blobpool.Config
 
+	// TxTrace
+	TxTrace txtrace.Config
+
 	// Gas Price Oracle options
 	GPO gasprice.Config
 
@@ -143,6 +148,9 @@ type Config struct {
 
 	// RPCGasCap is the global gas cap for eth-call variants.
 	RPCGasCap uint64
+
+	// RPCCache is the cache setting for eth_call/eth_multiCall
+	RPCCache uint64
 
 	// RPCEVMTimeout is the global timeout for eth-call.
 	RPCEVMTimeout time.Duration

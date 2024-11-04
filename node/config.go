@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -192,6 +193,9 @@ type Config struct {
 
 	// Logger is a custom logger to use with the p2p.Server.
 	Logger log.Logger `toml:",omitempty"`
+
+	// LogConfig is a configuration of the node asynchronous rotation log.
+	LogConfig *LogConfig `toml:",omitempty"`
 
 	oldGethResourceWarning bool
 
@@ -477,4 +481,32 @@ func (c *Config) GetKeyStoreDir() (string, bool, error) {
 	}
 
 	return keydir, isEphemeral, nil
+}
+
+var warnLock sync.Mutex
+
+func (c *Config) warnOnce(w *bool, format string, args ...interface{}) {
+	warnLock.Lock()
+	defer warnLock.Unlock()
+
+	if *w {
+		return
+	}
+	l := c.Logger
+	if l == nil {
+		l = log.Root()
+	}
+	l.Warn(fmt.Sprintf(format, args...))
+	*w = true
+}
+
+// LogConfig configuration of the asynchronous rotation log.
+type LogConfig struct {
+	// FilePath path of log file, filename must be included,
+	// If not specified, the datadir will be used as the default filepath
+	FilePath string
+	// MaxBytesSize max bytes allowed for log file.
+	MaxBytesSize uint64
+	// Level log level.
+	Level string
 }

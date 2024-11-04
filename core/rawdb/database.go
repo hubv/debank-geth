@@ -187,15 +187,14 @@ func resolveChainFreezerDir(ancient string) string {
 // value data store with a freezer moving immutable chain segments into cold
 // storage. The passed ancient indicates the path of root ancient directory
 // where the chain freezer can be opened.
-func NewDatabaseWithFreezer(db ethdb.KeyValueStore, ancient string, namespace string, readonly bool) (ethdb.Database, error) {
-	// Create the idle freezer instance. If the given ancient directory is empty,
-	// in-memory chain freezer is used (e.g. dev mode); otherwise the regular
-	// file-based freezer is created.
+func NewDatabaseWithFreezer(db ethdb.KeyValueStore, ancient string, namespace string, readonly, ancientPrune bool) (ethdb.Database, error) {
 	chainFreezerDir := ancient
 	if chainFreezerDir != "" {
 		chainFreezerDir = resolveChainFreezerDir(chainFreezerDir)
 	}
-	frdb, err := newChainFreezer(chainFreezerDir, namespace, readonly)
+
+	// Create the idle freezer instance
+	frdb, err := newChainFreezer(resolveChainFreezerDir(ancient), namespace, readonly)
 	if err != nil {
 		printChainMetadata(db)
 		return nil, err
@@ -222,7 +221,8 @@ func NewDatabaseWithFreezer(db ethdb.KeyValueStore, ancient string, namespace st
 	// If the genesis hash is empty, we have a new key-value store, so nothing to
 	// validate in this method. If, however, the genesis hash is not nil, compare
 	// it to the freezer content.
-	if kvgenesis, _ := db.Get(headerHashKey(0)); len(kvgenesis) > 0 {
+	// TODO consider deprecate this check
+	if kvgenesis, _ := db.Get(headerHashKey(0)); len(kvgenesis) > 0 && !ancientPrune {
 		if frozen, _ := frdb.Ancients(); frozen > 0 {
 			// If the freezer already contains something, ensure that the genesis blocks
 			// match, otherwise we might mix up freezers across chains and destroy both
@@ -279,7 +279,7 @@ func NewDatabaseWithFreezer(db ethdb.KeyValueStore, ancient string, namespace st
 		}
 	}
 	// Freezer is consistent with the key-value database, permit combining the two
-	if !readonly {
+	if !readonly && !ancientPrune {
 		frdb.wg.Add(1)
 		go func() {
 			frdb.freeze(db)
@@ -360,7 +360,8 @@ type OpenOptions struct {
 	ReadOnly          bool
 	// Ephemeral means that filesystem sync operations should be avoided: data integrity in the face of
 	// a crash is not important. This option should typically be used in tests.
-	Ephemeral bool
+	Ephemeral    bool
+	AncientPrune bool
 }
 
 // openKeyValueDatabase opens a disk-based key-value database, e.g. leveldb or pebble.
@@ -406,7 +407,7 @@ func Open(o OpenOptions) (ethdb.Database, error) {
 	if len(o.AncientsDirectory) == 0 {
 		return kvdb, nil
 	}
-	frdb, err := NewDatabaseWithFreezer(kvdb, o.AncientsDirectory, o.Namespace, o.ReadOnly)
+	frdb, err := NewDatabaseWithFreezer(kvdb, o.AncientsDirectory, o.Namespace, o.ReadOnly, o.AncientPrune)
 	if err != nil {
 		kvdb.Close()
 		return nil, err

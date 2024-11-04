@@ -116,7 +116,7 @@ func (indexer *txIndexer) run(tail *uint64, head uint64, stop chan struct{}, don
 		rawdb.IndexTransactions(indexer.db, head-indexer.limit+1, *tail, stop, true)
 	} else {
 		// Unindex a part of stale indices and forward index tail to HEAD-limit
-		rawdb.UnindexTransactions(indexer.db, *tail, head-indexer.limit+1, stop, false)
+		rawdb.UnindexTransactions(indexer.db, *tail, head-indexer.limit+1, stop, false, true)
 	}
 }
 

@@ -183,6 +183,7 @@ var (
 		utils.IPCPathFlag,
 		utils.InsecureUnlockAllowedFlag,
 		utils.RPCGlobalGasCapFlag,
+		utils.RPCCacheFlag,
 		utils.RPCGlobalEVMTimeoutFlag,
 		utils.RPCGlobalTxFeeCapFlag,
 		utils.AllowUnprotectedTxs,
@@ -205,6 +206,11 @@ var (
 		utils.MetricsInfluxDBTokenFlag,
 		utils.MetricsInfluxDBBucketFlag,
 		utils.MetricsInfluxDBOrganizationFlag,
+	}
+
+	txTraceFlags = []cli.Flag{
+		utils.TxTraceEnabledFlag,
+		utils.TxTraceStoreFlag,
 	}
 )
 
@@ -257,6 +263,7 @@ func init() {
 		consoleFlags,
 		debug.Flags,
 		metricsFlags,
+		txTraceFlags,
 	)
 	flags.AutoEnvVars(app.Flags, "GETH")
 

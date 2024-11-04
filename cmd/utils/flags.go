@@ -75,6 +75,7 @@ import (
 	"github.com/ethereum/go-ethereum/triedb"
 	"github.com/ethereum/go-ethereum/triedb/hashdb"
 	"github.com/ethereum/go-ethereum/triedb/pathdb"
+	"github.com/ethereum/go-ethereum/txtrace"
 	pcsclite "github.com/gballet/go-libpcsclite"
 	gopsutil "github.com/shirou/gopsutil/mem"
 	"github.com/urfave/cli/v2"
@@ -110,6 +111,11 @@ var (
 		Name:     "datadir.ancient",
 		Usage:    "Root directory for ancient data (default = inside chaindata)",
 		Category: flags.EthCategory,
+	}
+	AncientPruneFlag = &cli.BoolFlag{
+		Name:     "ancient.prune",
+		Usage:    "Totally discard the ancient blocks instead of writing them to the freezer db",
+		Category: flags.MiscCategory,
 	}
 	MinFreeDiskSpaceFlag = &flags.DirectoryFlag{
 		Name:     "datadir.minfreedisk",
@@ -552,6 +558,12 @@ var (
 		Value:    ethconfig.Defaults.RPCGasCap,
 		Category: flags.APICategory,
 	}
+	RPCCacheFlag = &cli.Uint64Flag{
+		Name:     "rpc.cache",
+		Usage:    "Sets rpc cache that can be used in eth_call/eth_multiCall (0=infinite)",
+		Value:    ethconfig.Defaults.RPCCache,
+		Category: flags.APICategory,
+	}
 	RPCGlobalEVMTimeoutFlag = &cli.DurationFlag{
 		Name:     "rpc.evmtimeout",
 		Usage:    "Sets a timeout used for eth_call (0=infinite)",
@@ -951,6 +963,18 @@ Please note that --` + MetricsHTTPFlag.Name + ` must be set to start the server.
 		Value:    metrics.DefaultConfig.InfluxDBOrganization,
 		Category: flags.MetricsCategory,
 	}
+
+	// TxTraceEnabledFlag ...
+	TxTraceEnabledFlag = &cli.BoolFlag{
+		Name:     "txtrace",
+		Usage:    "Enable transaction trace while evm processing, default result is openEthereum style",
+		Category: flags.MiscCategory,
+	}
+	TxTraceStoreFlag = &flags.DirectoryFlag{
+		Name:     "txtrace.store",
+		Usage:    "Data directory for store transaction trace result (default = inside datadir)",
+		Category: flags.MiscCategory,
+	}
 )
 
 var (
@@ -966,6 +990,7 @@ var (
 	DatabaseFlags = []cli.Flag{
 		DataDirFlag,
 		AncientFlag,
+		AncientPruneFlag,
 		RemoteDBFlag,
 		DBEngineFlag,
 		StateSchemeFlag,
@@ -1490,6 +1515,15 @@ func setGPO(ctx *cli.Context, cfg *gasprice.Config) {
 	}
 }
 
+func setTxTrace(ctx *cli.Context, cfg *txtrace.Config) {
+	if ctx.IsSet(TxTraceEnabledFlag.Name) {
+		cfg.Enabled = ctx.Bool(TxTraceEnabledFlag.Name)
+	}
+	if ctx.IsSet(TxTraceStoreFlag.Name) {
+		cfg.StoreDir = ctx.String(TxTraceStoreFlag.Name)
+	}
+}
+
 func setTxPool(ctx *cli.Context, cfg *legacypool.Config) {
 	if ctx.IsSet(TxPoolLocalsFlag.Name) {
 		locals := strings.Split(ctx.String(TxPoolLocalsFlag.Name), ",")
@@ -1641,8 +1675,14 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	// Avoid conflicting network flags
 	CheckExclusive(ctx, MainnetFlag, DeveloperFlag, SepoliaFlag, HoleskyFlag)
 	CheckExclusive(ctx, DeveloperFlag, ExternalSignerFlag) // Can't use both ephemeral unlocked and external signer
-
-	// Set configurations from CLI flags
+	if ctx.String(GCModeFlag.Name) == "archive" && ctx.Uint64(TxLookupLimitFlag.Name) != 0 {
+		ctx.Set(TxLookupLimitFlag.Name, "0")
+		log.Warn("Disable transaction unindexing for archive node")
+	}
+	if ctx.String(GCModeFlag.Name) == "archive" && ctx.Uint64(AncientPruneFlag.Name) != 0 {
+		ctx.Set(AncientPruneFlag.Name, "false")
+		log.Warn("Disable ancient prunning for archive node")
+	}
 	setEtherbase(ctx, cfg)
 	setGPO(ctx, &cfg.GPO)
 	setTxPool(ctx, &cfg.TxPool)
@@ -1650,6 +1690,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	setMiner(ctx, &cfg.Miner)
 	setRequiredBlocks(ctx, cfg)
 	setLes(ctx, cfg)
+	setTxTrace(ctx, &cfg.TxTrace)
 
 	// Cap the cache allowance and tune the garbage collector
 	mem, err := gopsutil.VirtualMemory()
@@ -1720,6 +1761,12 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		log.Warn("The flag --txlookuplimit is deprecated and will be removed, please use --history.transactions")
 		cfg.TransactionHistory = ctx.Uint64(TxLookupLimitFlag.Name)
 	}
+	if ctx.IsSet(AncientPruneFlag.Name) {
+		cfg.AncientPrune = ctx.Bool(AncientPruneFlag.Name)
+	}
+	if ctx.IsSet(CacheFlag.Name) || ctx.IsSet(CacheTrieFlag.Name) {
+		cfg.TrieCleanCache = ctx.Int(CacheFlag.Name) * ctx.Int(CacheTrieFlag.Name) / 100
+	}
 	if ctx.String(GCModeFlag.Name) == "archive" && cfg.TransactionHistory != 0 {
 		cfg.TransactionHistory = 0
 		log.Warn("Disabled transaction unindexing for archive node")
@@ -1775,6 +1822,9 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	}
 	if ctx.IsSet(RPCGlobalTxFeeCapFlag.Name) {
 		cfg.RPCTxFeeCap = ctx.Float64(RPCGlobalTxFeeCapFlag.Name)
+	}
+	if ctx.IsSet(RPCCacheFlag.Name) {
+		cfg.RPCCache = ctx.Uint64(RPCCacheFlag.Name)
 	}
 	if ctx.IsSet(NoDiscoverFlag.Name) {
 		cfg.EthDiscoveryURLs, cfg.SnapDiscoveryURLs = []string{}, []string{}
@@ -2062,7 +2112,7 @@ func MakeChainDatabase(ctx *cli.Context, stack *node.Node, readonly bool) ethdb.
 		}
 		chainDb = remotedb.New(client)
 	default:
-		chainDb, err = stack.OpenDatabaseWithFreezer("chaindata", cache, handles, ctx.String(AncientFlag.Name), "", readonly)
+		chainDb, err = stack.OpenDatabaseWithFreezer("chaindata", cache, handles, ctx.String(AncientFlag.Name), "", readonly, ctx.Bool(AncientPruneFlag.Name))
 	}
 	if err != nil {
 		Fatalf("Could not open database: %v", err)

@@ -24,6 +24,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/dgraph-io/ristretto"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -121,7 +122,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	log.Info("Allocated trie memory caches", "clean", common.StorageSize(config.TrieCleanCache)*1024*1024, "dirty", common.StorageSize(config.TrieDirtyCache)*1024*1024)
 
 	// Assemble the Ethereum object
-	chainDb, err := stack.OpenDatabaseWithFreezer("chaindata", config.DatabaseCache, config.DatabaseHandles, config.DatabaseFreezer, "eth/db/chaindata/", false)
+	chainDb, err := stack.OpenDatabaseWithFreezer("chaindata", config.DatabaseCache, config.DatabaseHandles, config.DatabaseFreezer, "eth/db/chaindata/", false, config.AncientPrune)
 	if err != nil {
 		return nil, err
 	}
@@ -194,6 +195,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			Preimages:           config.Preimages,
 			StateHistory:        config.StateHistory,
 			StateScheme:         scheme,
+			AncientPrune:        config.AncientPrune,
 		}
 	)
 	if config.VMTrace != "" {
@@ -219,7 +221,9 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if err != nil {
 		return nil, err
 	}
-	eth.bloomIndexer.Start(eth.blockchain)
+	if !config.AncientPrune {
+		eth.bloomIndexer.Start(eth.blockchain)
+	}
 
 	if config.BlobPool.Datadir != "" {
 		config.BlobPool.Datadir = stack.ResolvePath(config.BlobPool.Datadir)
@@ -254,7 +258,12 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	eth.miner = miner.New(eth, config.Miner, eth.engine)
 	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData))
 
-	eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil}
+	callCache, _ := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 1e7,                    // number of keys to track frequency of (10M).
+		MaxCost:     int64(config.RPCCache), // maximum cost of cache (1GB).
+		BufferItems: 64,                     // number of keys per Get buffer.
+	})
+	eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil, callCache}
 	if eth.APIBackend.allowUnprotectedTxs {
 		log.Info("Unprotected transactions allowed")
 	}

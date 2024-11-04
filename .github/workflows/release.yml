@@ -1,0 +1,113 @@
+name: "Release new artifacts"
+
+on:
+  release:
+    types:
+      - created
+  workflow_dispatch:
+
+env:
+  BUILT_BINARY_PATH: build/bin
+  BUILT_BINARY_NAME: geth
+  IMAGE: debankdocker/go-ethereum
+
+jobs:
+  release-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.19.x
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: tibdex/github-app-token@v1
+        id: generate-token
+        with:
+          app_id: ${{ secrets.RELEASE_MANAGER_APP_ID }}
+          private_key: ${{ secrets.RELEASE_MANAGER_APP_SECRET }}
+
+      - name: Make binaries
+        run: |
+          make
+
+      - name: Set env
+        run: |
+          echo "ARCHIVE_FILE_NAME=eth-${GITHUB_REF#refs/*/}-linux-amd64" >> $GITHUB_ENV
+
+      - name: Archive artifacts
+        run: |
+          mkdir $ARCHIVE_FILE_NAME
+          cp $BUILT_BINARY_PATH/$BUILT_BINARY_NAME $ARCHIVE_FILE_NAME/$BUILT_BINARY_NAME
+          sha256sum $ARCHIVE_FILE_NAME/$BUILT_BINARY_NAME --tag >> $ARCHIVE_FILE_NAME/sha256.checksum
+          chmod u+x $ARCHIVE_FILE_NAME/$BUILT_BINARY_NAME
+          $ARCHIVE_FILE_NAME/$BUILT_BINARY_NAME version
+          tar cvfz $ARCHIVE_FILE_NAME.tar.gz $ARCHIVE_FILE_NAME
+      - uses: actions/upload-artifact@v3
+        with:
+          name: go-ethereum-artifact
+          path: $ARCHIVE_FILE_NAME.tar.gz
+      - name: Get release
+        id: get_release
+        uses: bruceadams/get-release@v1.2.3
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+
+      - name: Upload Linux release binary
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path:  ${{ env.BUILT_BINARY_PATH }}/${{ env.BUILT_BINARY_NAME }}
+          asset_name: go-ethereum
+          asset_content_type: application/octet-stream
+
+      - name: Upload Linux release binary tarbal
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: ${{ env.ARCHIVE_FILE_NAME }}.tar.gz
+          asset_name: ${{ env.ARCHIVE_FILE_NAME }}.tar.gz
+          asset_content_type: application/gzip
+
+  make-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dettack
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+      - name: Set env
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=${{ env.RELEASE_VERSION }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./Dockerfile.debank
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

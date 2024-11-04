@@ -88,6 +88,7 @@ func New(conf *Config) (*Node, error) {
 		}
 		conf.DataDir = absdatadir
 	}
+
 	if conf.Logger == nil {
 		conf.Logger = log.New()
 	}
@@ -739,12 +740,34 @@ func (n *Node) OpenDatabase(name string, cache, handles int, namespace string, r
 	return db, err
 }
 
+// OpenDatabaseWithTrace same as OpenDatabaseWithFreezer but open txTrace dedicated database instead.
+func (n *Node) OpenDatabaseWithTrace(cache, handles int, tracer, namespace string, readonly bool) (ethdb.Database, error) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+	if n.state == closedState {
+		return nil, ErrNodeStopped
+	}
+
+	var db ethdb.Database
+	var err error
+	if tracer == "" {
+		tracer = "tracedb"
+	}
+	tracer = n.ResolvePath(tracer)
+	db, err = rawdb.NewLevelDBDatabase(tracer, cache, handles, namespace, readonly)
+	if err == nil {
+		db = n.wrapDatabase(db)
+	}
+	log.Info("Opened tx-trace database", "database", tracer)
+	return db, err
+}
+
 // OpenDatabaseWithFreezer opens an existing database with the given name (or
 // creates one if no previous can be found) from within the node's data directory,
 // also attaching a chain freezer to it that moves ancient chain data from the
 // database to immutable append-only files. If the node is an ephemeral one, a
 // memory database is returned.
-func (n *Node) OpenDatabaseWithFreezer(name string, cache, handles int, ancient string, namespace string, readonly bool) (ethdb.Database, error) {
+func (n *Node) OpenDatabaseWithFreezer(name string, cache, handles int, ancient, namespace string, readonly, ancientPrune bool) (ethdb.Database, error) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	if n.state == closedState {
@@ -753,7 +776,7 @@ func (n *Node) OpenDatabaseWithFreezer(name string, cache, handles int, ancient 
 	var db ethdb.Database
 	var err error
 	if n.config.DataDir == "" {
-		db, err = rawdb.NewDatabaseWithFreezer(memorydb.New(), "", namespace, readonly)
+		db, err = rawdb.NewDatabaseWithFreezer(memorydb.New(), "", namespace, readonly, ancientPrune)
 	} else {
 		db, err = rawdb.Open(rawdb.OpenOptions{
 			Type:              n.config.DBEngine,
@@ -763,6 +786,7 @@ func (n *Node) OpenDatabaseWithFreezer(name string, cache, handles int, ancient 
 			Cache:             cache,
 			Handles:           handles,
 			ReadOnly:          readonly,
+			AncientPrune:      ancientPrune,
 		})
 	}
 

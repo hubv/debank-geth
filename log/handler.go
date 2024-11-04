@@ -45,8 +45,7 @@ type TerminalHandler struct {
 	// fieldPadding is a map with maximum field value lengths seen until now
 	// to allow padding log contexts in a bit smarter way.
 	fieldPadding map[string]int
-
-	buf []byte
+	buf          []byte
 }
 
 // NewTerminalHandler returns a handler which formats log records at all levels optimized for human readability on

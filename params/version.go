@@ -20,6 +20,12 @@ import (
 	"fmt"
 )
 
+var (
+	// Git SHA1 commit hash of the release (set via linker flags)
+	gitCommit string
+	gitDate   string
+)
+
 const (
 	VersionMajor = 1        // Major version component of the current release
 	VersionMinor = 14       // Minor version component of the current release
@@ -55,7 +61,14 @@ func ArchiveVersion(gitCommit string) string {
 	return vsn
 }
 
-func VersionWithCommit(gitCommit, gitDate string) string {
+func VersionWithCommit(commit, date string) string {
+	if commit == "" {
+		commit = gitCommit
+	}
+	if date == "" {
+		date = gitDate
+	}
+
 	vsn := VersionWithMeta
 	if len(gitCommit) >= 8 {
 		vsn += "-" + gitCommit[:8]

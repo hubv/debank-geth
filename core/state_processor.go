@@ -81,7 +81,6 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	if p.config.IsPrague(block.Number(), block.Time()) {
 		ProcessParentBlockHash(block.ParentHash(), vmenv, statedb)
 	}
-	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
 		msg, err := TransactionToMessage(tx, signer, header.BaseFee)
 		if err != nil {
@@ -95,7 +94,9 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		}
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
+
 	}
+
 	// Read requests if Prague is enabled.
 	var requests types.Requests
 	if p.config.IsPrague(block.Number(), block.Time()) {

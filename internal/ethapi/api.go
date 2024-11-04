@@ -187,6 +187,12 @@ func NewTxPoolAPI(b Backend) *TxPoolAPI {
 	return &TxPoolAPI{b}
 }
 
+// ContentByAccount returns the transactions contained within the tx pool by given account address.
+func (s *TxPoolAPI) ContentByAccount(addr common.Address) map[string]map[string]*RPCTransaction {
+	// map[(queued|pending)]map[tx.Nonce()]tx
+	return s.ContentFrom(addr)
+}
+
 // Content returns the transactions contained within the transaction pool.
 func (api *TxPoolAPI) Content() map[string]map[string]map[string]*RPCTransaction {
 	content := map[string]map[string]map[string]*RPCTransaction{

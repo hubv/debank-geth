@@ -132,6 +132,7 @@ const (
 // CacheConfig contains the configuration values for the trie database
 // and state snapshot these are resident in a blockchain.
 type CacheConfig struct {
+	TriesInMemory       int           // Keeps the latest n blocks when pruning.
 	TrieCleanLimit      int           // Memory allowance (MB) to use for caching trie nodes in memory
 	TrieCleanNoPrefetch bool          // Whether to disable heuristic state prefetching for followup blocks
 	TrieDirtyLimit      int           // Memory limit (MB) at which to start flushing dirty trie nodes to disk
@@ -142,8 +143,9 @@ type CacheConfig struct {
 	StateHistory        uint64        // Number of blocks from head whose state histories are reserved.
 	StateScheme         string        // Scheme used to store ethereum states and merkle tree nodes on top
 
-	SnapshotNoBuild bool // Whether the background generation is allowed
+	AncientPrune    bool
 	SnapshotWait    bool // Wait for snapshot construction on startup. TODO(karalabe): This is a dirty hack for testing, nuke it
+	SnapshotNoBuild bool // Whether the background generation is allowed
 }
 
 // triedbConfig derives the configures for trie database.
@@ -170,6 +172,7 @@ func (c *CacheConfig) triedbConfig(isVerkle bool) *triedb.Config {
 // defaultCacheConfig are the default caching values if none are specified by the
 // user (also used during testing).
 var defaultCacheConfig = &CacheConfig{
+	TriesInMemory:  128,
 	TrieCleanLimit: 256,
 	TrieDirtyLimit: 256,
 	TrieTimeLimit:  5 * time.Minute,
@@ -462,7 +465,6 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, genesis *Genesis
 		}
 		rawdb.WriteChainConfig(db, genesisHash, chainConfig)
 	}
-
 	// Start tx indexer if it's enabled.
 	if txLookupLimit != nil {
 		bc.txIndexer = newTxIndexer(*txLookupLimit, bc)
@@ -1154,6 +1156,9 @@ func (bc *BlockChain) Stop() {
 				log.Error("Dangling trie nodes after full cleanup")
 			}
 		}
+		if !bc.triegc.Empty() {
+			log.Info("Dereference all trie nodes remaining in prqueue", "nodes", bc.triegc.Size())
+		}
 	}
 	// Allow tracers to clean-up and release resources.
 	if bc.logger != nil && bc.logger.OnClose != nil {
@@ -1189,11 +1194,18 @@ const (
 
 // InsertReceiptChain attempts to complete an already existing header chain with
 // transaction and receipt data.
+// (The function name is confusing here, though it calls "insert receipt", it inserts block body for sure,
+//
+//	but it doesn't process the transaction in the block, which is different from the InsertChain() function)
 func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain []types.Receipts, ancientLimit uint64) (int, error) {
 	// We don't require the chainMu here since we want to maximize the
 	// concurrency of header insertion and receipt insertion.
 	bc.wg.Add(1)
 	defer bc.wg.Done()
+
+	if bc.cacheConfig.AncientPrune {
+		ancientLimit = 0
+	}
 
 	var (
 		ancientBlocks, liveBlocks     types.Blocks
