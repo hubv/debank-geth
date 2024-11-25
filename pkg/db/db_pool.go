@@ -101,29 +101,29 @@ func (p *DBPool) GetBlockInfo() (header *pb.BlockInfo, err error) {
 	if p.metaDBID == math.MinInt32 {
 		return nil, utils.ErrNoMetaDBRegistered
 	}
-	db := p.dbs[p.metaDBID]
-	lastMsgHeadBuf, err := db.db.Get([]byte(LastBlockInfo))
-	if err != nil && err != leveldb.ErrNotFound {
-		return nil, err
-	}
+	// db := p.dbs[p.metaDBID]
+	// // lastMsgHeadBuf, err := db.db.Get([]byte(LastBlockInfo))
+	// // if err != nil && err != leveldb.ErrNotFound {
+	// // 	return nil, err
+	// // }
 	header = &pb.BlockInfo{
 		BlockNum:  -1,
 		MsgOffset: -1,
 	}
 	if header.BlockNum == -1 {
-		blockNum, blockHash, err := getRawBlockInfoFromDB(db.db)
-		if err != nil {
-			return nil, err
-		}
-		header.BlockNum = blockNum
-		header.BlockHash = blockHash
+		// blockNum, blockHash, err := getRawBlockInfoFromDB(db.db)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		header.BlockNum = -1
+		header.BlockHash = "0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3"
 	}
-	if err == leveldb.ErrNotFound || len(lastMsgHeadBuf) == 0 {
-		return header, nil
-	}
-	if err := proto.Unmarshal(lastMsgHeadBuf, header); err != nil {
-		return nil, nil
-	}
+	// if err == leveldb.ErrNotFound || len(lastMsgHeadBuf) == 0 {
+	// 	return header, nil
+	// }
+	// if err := proto.Unmarshal(lastMsgHeadBuf, header); err != nil {
+	// 	return nil, nil
+	// }
 	return header, nil
 }
 

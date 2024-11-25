@@ -24,9 +24,9 @@ import (
 )
 
 const (
-	BucketName = "prod-blockchain-replicator"
+	BucketName = "prod-blockchain-replicator-ps"
 	ChunkSize  = 1 << 22
-	Region     = "ap-northeast-1"
+	Region     = "eu-west-1"
 )
 
 var MaxCacheSize uint = 256
@@ -58,6 +58,7 @@ func NewServer() (*grpc.Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	utils.Logger().Info("sdkConfig: %+v", zap.Any("config", sdkConfig))
 	s3 := s3.NewFromConfig(sdkConfig)
 	s := grpc.NewServer(grpc.MaxRecvMsgSize(math.MaxInt32),
 		grpc.MaxSendMsgSize(math.MaxInt32))
