@@ -193,14 +193,8 @@ type Tree struct {
 //   - otherwise, the entire snapshot is considered invalid and will be recreated on
 //     a background thread.
 func New(config Config, diskdb ethdb.KeyValueStore, triedb *triedb.Database, root common.Hash) (*Tree, error) {
-	snap, err := LoadTree(config, diskdb, triedb, root)
-	if err != nil {
-		log.Warn("Failed to load snapshot tree, try use snapshot.New", "err", err)
-	} else {
-		return snap, nil
-	}
 	// Create a new, empty snapshot tree
-	snap = &Tree{
+	snap := &Tree{
 		config: config,
 		diskdb: diskdb,
 		triedb: triedb,
