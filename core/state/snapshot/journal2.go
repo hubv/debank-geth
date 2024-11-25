@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/trie"
+	"github.com/ethereum/go-ethereum/triedb"
 )
 
 func (dl *diffLayer) journalSnapshot2(buffer *bytes.Buffer) error {
@@ -160,7 +160,7 @@ func (t *Tree) LoadSnapshotFromJournal2(rootHash common.Hash) (Snapshot, error) 
 	return t.Snapshot(rootHash), nil
 }
 
-func LoadTree(config Config, diskdb ethdb.KeyValueStore, triedb *trie.Database, root common.Hash) (*Tree, error) {
+func LoadTree(config Config, diskdb ethdb.KeyValueStore, triedb *triedb.Database, root common.Hash) (*Tree, error) {
 	// Create a new, empty snapshot tree
 	snap := &Tree{
 		config: config,

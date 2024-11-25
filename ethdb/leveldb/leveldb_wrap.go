@@ -93,7 +93,7 @@ func (db *wrapDB) NewIteratorWithRange(start []byte, limit []byte) (rdb.Iterator
 }
 
 func (db *wrapDB) NewSnapshot() (rdb.Snapshot, error) {
-	return db.db.NewSnapshot()
+	panic("not supported")
 }
 
 func (db *wrapDB) Compact(start []byte, limit []byte) error {
@@ -105,5 +105,5 @@ func (db *wrapDB) Stats() (map[string]string, error) {
 }
 
 func (db *wrapDB) Stat(property string) (string, error) {
-	return db.db.Stat(property)
+	panic("not supported")
 }

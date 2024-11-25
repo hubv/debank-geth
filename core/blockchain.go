@@ -466,9 +466,8 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, genesis *Genesis
 		go bc.syncClient.Sync()
 	}
 
-		// Re-initialize the state database with snapshot
-		bc.statedb = state.NewDatabase(bc.triedb, bc.snaps)
-	}
+	// Re-initialize the state database with snapshot
+	bc.statedb = state.NewDatabase(bc.triedb, bc.snaps)
 
 	// Rewind the chain in case of an incompatible config upgrade.
 	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {

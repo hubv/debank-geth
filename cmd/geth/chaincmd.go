@@ -40,7 +40,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/repl"
 	"github.com/urfave/cli/v2"
 )
@@ -154,17 +153,6 @@ from Era archives.
 The export-history command will export blocks and their corresponding receipts
 into Era archives. Eras are typically packaged in steps of 8192 blocks.
 `,
-	repairCommand = &cli.Command{
-		Action:    repairChain,
-		Name:      "repair",
-		Usage:     "repair blockchain",
-		ArgsUsage: "",
-		Flags: flags.Merge([]cli.Flag{
-			utils.CacheFlag,
-			utils.SyncModeFlag,
-		}, utils.DatabasePathFlags),
-		Description: `
-Repair the blockchain database.`,
 	}
 	importPreimagesCommand = &cli.Command{
 		Action:    importPreimages,

@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"net/http"
 	"runtime"
 	"sync"
 
@@ -137,10 +136,6 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if metricAddress == "" {
 		metricAddress = ":10086"
 	}
-	go func() {
-		http.Handle("/metrics", promhttp.Handler())
-		http.ListenAndServe(metricAddress, nil)
-	}()
 	// Assemble the Ethereum object
 	chainDb, err := stack.OpenDatabaseWithFreezer("chaindata", config.DatabaseCache, config.DatabaseHandles, config.DatabaseFreezer, "eth/db/chaindata/", false)
 	if err != nil {

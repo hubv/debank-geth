@@ -81,6 +81,7 @@ type StateDB struct {
 	prefetcher *triePrefetcher
 	trie       Trie
 	reader     Reader
+	snaps      *snapshot.Tree
 
 	// originalRoot is the pre-state root, before any changes were made.
 	// It will be updated when the Commit is called.
@@ -1271,11 +1272,11 @@ func (s *StateDB) commitAndFlush(block uint64, deleteEmptyObjects bool) (*stateU
 				log.Warn("Failed to update snapshot tree", "from", ret.originRoot, "to", ret.root, "err", err)
 			}
 
-			err := s.snaps.JournalSnapshot2(root)
+			err := s.snaps.JournalSnapshot2(ret.root)
 			if err != nil {
-				log.Warn("Failed to journal snapshot tree", "root", root, "err", err)
+				log.Warn("Failed to journal snapshot tree", "root", ret.root, "err", err)
 			} else {
-				log.Info("Journal snapshot tree", "root", root)
+				log.Info("Journal snapshot tree", "root", ret.root)
 			}
 
 			// Keep 128 diff layers in the memory, persistent layer is 129th.

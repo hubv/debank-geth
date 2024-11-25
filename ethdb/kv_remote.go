@@ -81,16 +81,16 @@ func (db *remoteDB) NewIterator(prefix []byte, start []byte) Iterator {
 	return db.db.NewIterator(prefix, start)
 }
 
-func (db *remoteDB) Stat(property string) (string, error) {
-	return db.db.Stat(property)
+func (db *remoteDB) Stat() (string, error) {
+	panic("not supported")
 }
 
 func (db *remoteDB) Compact(start []byte, limit []byte) error {
 	return db.db.Compact(start, limit)
 }
 
-func (db *remoteDB) NewSnapshot() (Snapshot, error) {
-	return db.db.NewSnapshot()
+func (db *remoteDB) DeleteRange(start, end []byte) error {
+	panic("not supported")
 }
 
 func (db *remoteDB) Close() error {
