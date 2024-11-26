@@ -450,24 +450,24 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, genesis *Genesis
 			return nil, err
 		}
 		log.Info("Loaded local snapshot tree", "root", head.Root, "height", head.Number, "SnapshotLimit", bc.cacheConfig.SnapshotLimit)
-	}
 
-	if !repl.Cfg.IsWriter {
-		client, err := reader.NewClient(repl.Cfg.RemoteAddr)
-		if err != nil {
-			return nil, err
+		if !repl.Cfg.IsWriter {
+			client, err := reader.NewClient(repl.Cfg.RemoteAddr)
+			if err != nil {
+				return nil, err
+			}
+			bc.syncClient = NewSyncer(bc, reader.NewSyncClient(client))
+			err = bc.syncClient.Init()
+			if err != nil {
+				return nil, err
+			}
+			log.Info("Start syncer")
+			go bc.syncClient.Sync()
 		}
-		bc.syncClient = NewSyncer(bc, reader.NewSyncClient(client))
-		err = bc.syncClient.Init()
-		if err != nil {
-			return nil, err
-		}
-		log.Info("Start syncer")
-		go bc.syncClient.Sync()
-	}
 
-	// Re-initialize the state database with snapshot
-	bc.statedb = state.NewDatabase(bc.triedb, bc.snaps)
+		// Re-initialize the state database with snapshot
+		bc.statedb = state.NewDatabase(bc.triedb, bc.snaps)
+	}
 
 	// Rewind the chain in case of an incompatible config upgrade.
 	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
