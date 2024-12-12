@@ -191,12 +191,7 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 		hasher:               crypto.NewKeccakState(),
 	}
 	if sdb.snaps != nil {
-		if sdb.snap = sdb.snaps.Snapshot(root); sdb.snap != nil {
-			sdb.snapAccounts = make(map[common.Hash][]byte)
-			sdb.snapStorage = make(map[common.Hash]map[common.Hash][]byte)
-		} else {
-			log.Warn("Failed to load snapshot", "root", root)
-		}
+		sdb.snap = sdb.snaps.Snapshot(root)
 	}
 	return sdb, nil
 }
@@ -1339,11 +1334,11 @@ func (s *StateDB) commitAndFlush(block uint64, deleteEmptyObjects bool) (*stateU
 				log.Warn("Failed to update snapshot tree", "from", ret.originRoot, "to", ret.root, "err", err)
 			}
 
-			err := s.snaps.JournalSnapshot2(root)
+			err := s.snaps.JournalSnapshot2(ret.root)
 			if err != nil {
-				log.Warn("Failed to journal snapshot tree", "root", root, "err", err)
+				log.Warn("Failed to journal snapshot tree", "root", ret.root, "err", err)
 			} else {
-				log.Info("Journal snapshot tree", "root", root)
+				log.Info("Journal snapshot tree", "root", ret.root)
 			}
 
 			// Keep 128 diff layers in the memory, persistent layer is 129th.

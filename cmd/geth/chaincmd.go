@@ -162,7 +162,7 @@ into Era archives. Eras are typically packaged in steps of 8192 blocks.
 		Flags: flags.Merge([]cli.Flag{
 			utils.CacheFlag,
 			utils.SyncModeFlag,
-		}, utils.DatabasePathFlags),
+		}, utils.DatabaseFlags),
 		Description: `
 Repair the blockchain database.`,
 	}

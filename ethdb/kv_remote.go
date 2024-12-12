@@ -3,6 +3,8 @@ package ethdb
 import (
 	"fmt"
 
+	"github.com/DeBankDeFi/nodex/pkg/db"
+
 	"github.com/DeBankDeFi/nodex/pkg/reader"
 	"github.com/ethereum/go-ethereum/repl"
 )
@@ -81,15 +83,15 @@ func (db *remoteDB) NewIterator(prefix []byte, start []byte) Iterator {
 	return db.db.NewIterator(prefix, start)
 }
 
-func (db *remoteDB) Stat(property string) (string, error) {
-	return db.db.Stat(property)
+func (db *remoteDB) Stat() (string, error) {
+	return db.db.Stat("")
 }
 
 func (db *remoteDB) Compact(start []byte, limit []byte) error {
 	return db.db.Compact(start, limit)
 }
 
-func (db *remoteDB) NewSnapshot() (Snapshot, error) {
+func (db *remoteDB) NewSnapshot() (db.Snapshot, error) {
 	return db.db.NewSnapshot()
 }
 
