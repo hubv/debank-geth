@@ -1272,7 +1272,15 @@ func (s *StateDB) Commit(block uint64, deleteEmptyObjects bool) (common.Hash, er
 			if err := s.snaps.Update(root, parent, s.convertAccountSet(s.stateObjectsDestruct), s.accounts, s.storages); err != nil {
 				log.Warn("Failed to update snapshot tree", "from", parent, "to", root, "err", err)
 			}
-			// Keep TriesInMemory diff layers in the memory, persistent layer is 129th.
+
+			err := s.snaps.JournalSnapshot2(root)
+			if err != nil {
+				log.Warn("Failed to journal snapshot tree", "root", root, "err", err)
+			} else {
+				log.Info("Journal snapshot tree", "root", root)
+			}
+
+			// Keep 128 diff layers in the memory, persistent layer is 129th.
 			// - head layer is paired with HEAD state
 			// - head-1 layer is paired with HEAD-1 state
 			// - head-127 layer(bottom-most diff layer) is paired with HEAD-127 state
