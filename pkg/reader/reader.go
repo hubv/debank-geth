@@ -108,10 +108,10 @@ func NewReader(config *utils.Config, dbPool *db.DBPool) (reader *Reader, err err
 
 	rootCtx, cancelFn := context.WithCancel(context.Background())
 
-	resetC, err := ndrcReader.WatchRole(rootCtx)
-	if err != nil {
-		return nil, err
-	}
+	// resetC, err := ndrcReader.WatchRole(rootCtx)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	reader = &Reader{
 		config:          config,
@@ -121,7 +121,7 @@ func NewReader(config *utils.Config, dbPool *db.DBPool) (reader *Reader, err err
 		ndrcReader:      ndrcReader,
 		broker:          newBroker(),
 		lastBlockHeader: lastBlockHeader,
-		resetC:          resetC,
+		resetC:          nil,
 		rootCtx:         rootCtx,
 		cancelFn:        cancelFn,
 		stopdoneC:       make(chan struct{}),
@@ -143,3 +143,4 @@ func (r *Reader) Stop() {
 	<-r.stopdoneC
 	r.dbPool.Close()
 }
+

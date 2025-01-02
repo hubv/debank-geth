@@ -27,7 +27,7 @@ type Config struct {
 func NewDevelopmentConfig() *Config {
 	return &Config{
 		S3ProxyAddr:      "127.0.0.1:8765",
-		KafkaAddr:        "127.0.0.1:9092",
+		KafkaAddr:        "172.31.25.142:9092",
 		RemoteAddr:       "127.0.0.1:7654",
 		RemoteListenAddr: "0.0.0.0:7654",
 		Env:              "test",

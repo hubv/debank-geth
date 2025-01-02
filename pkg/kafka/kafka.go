@@ -73,6 +73,7 @@ func (k *KafkaClient) LastWriterOffset() int64 {
 }
 
 func (k *KafkaClient) RemoteOffset() (firstOffset int64, lastOffset int64, err error) {
+	utils.Logger().Info("k.client.Addrrrrrrrrrrrrrrrrrrrrrrrrr", zap.Any("k.client.Addr", k.client.Addr))
 	rsp, err := k.client.ListOffsets(context.Background(), &kafka.ListOffsetsRequest{
 		Addr: k.client.Addr,
 		Topics: map[string][]kafka.OffsetRequest{
@@ -197,3 +198,4 @@ func (k *KafkaClient) fetch(ctx context.Context, start int64) (records []*kafka.
 	}
 	return records, nil
 }
+

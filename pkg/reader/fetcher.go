@@ -98,15 +98,6 @@ func (r *Reader) fetchRun() {
 			if err != nil {
 				utils.Logger().Error("fetchAndCommit error", zap.Error(err))
 			}
-		case role := <-r.resetC:
-			utils.Logger().Info("reset", zap.Any("new role", role), zap.Any("old role", r.config.Role))
-			if role == r.config.Role || role == "" {
-				continue
-			}
-			err := r.reset(role)
-			if err != nil {
-				utils.Logger().Error("reset error", zap.Error(err))
-			}
 		case <-r.rootCtx.Done():
 			r.stopdoneC <- struct{}{}
 			return
