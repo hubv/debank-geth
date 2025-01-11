@@ -260,13 +260,13 @@ type ChainOverrides struct {
 // error is a *params.ConfigCompatError and the new, unwritten config is returned.
 //
 // The returned chain configuration is never nil.
-func SetupGenesisBlock(db ethdb.Database, triedb *triedb.Database, genesis *Genesis) (*params.ChainConfig, common.Hash, error) {
+func SetupGenesisBlock(db ethdb.Database, triedb *triedb.Database, genesis *Genesis) (*types.Block, *params.ChainConfig, common.Hash, error) {
 	return SetupGenesisBlockWithOverride(db, triedb, genesis, nil)
 }
 
-func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, genesis *Genesis, overrides *ChainOverrides) (*params.ChainConfig, common.Hash, error) {
+func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, genesis *Genesis, overrides *ChainOverrides) (*types.Block, *params.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
-		return params.AllEthashProtocolChanges, common.Hash{}, errGenesisNoConfig
+		return nil, params.AllEthashProtocolChanges, common.Hash{}, errGenesisNoConfig
 	}
 	applyOverrides := func(config *params.ChainConfig) {
 		if config != nil {
@@ -291,9 +291,9 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 	applyOverrides(genesis.Config)
 	block, err := genesis.Commit(db, triedb)
 	if err != nil {
-		return genesis.Config, common.Hash{}, err
+		return nil, genesis.Config, common.Hash{}, err
 	}
-	return genesis.Config, block.Hash(), nil
+	return block, genesis.Config, block.Hash(), nil
 	// }
 	// // The genesis block is present(perhaps in ancient database) while the
 	// // state database is not initialized yet. It can happen that the node
@@ -632,4 +632,3 @@ func decodePrealloc(data string) types.GenesisAlloc {
 	}
 	return ga
 }
-
