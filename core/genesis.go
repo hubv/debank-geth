@@ -17,7 +17,6 @@
 package core
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -279,89 +278,89 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 			}
 		}
 	}
-	// Just commit the new block if there is no stored genesis block.
-	stored := rawdb.ReadCanonicalHash(db, 0)
-	if (stored == common.Hash{}) {
-		if genesis == nil {
-			log.Info("Writing default main-net genesis block")
-			genesis = DefaultGenesisBlock()
-		} else {
-			log.Info("Writing custom genesis block")
-		}
+	// // Just commit the new block if there is no stored genesis block.
+	// stored := rawdb.ReadCanonicalHash(db, 0)
+	// if (stored == common.Hash{}) {
+	if genesis == nil {
+		log.Info("Writing default main-net genesis block")
+		genesis = DefaultGenesisBlock()
+	} else {
+		log.Info("Writing custom genesis block")
+	}
 
-		applyOverrides(genesis.Config)
-		block, err := genesis.Commit(db, triedb)
-		if err != nil {
-			return genesis.Config, common.Hash{}, err
-		}
-		return genesis.Config, block.Hash(), nil
+	applyOverrides(genesis.Config)
+	block, err := genesis.Commit(db, triedb)
+	if err != nil {
+		return genesis.Config, common.Hash{}, err
 	}
-	// The genesis block is present(perhaps in ancient database) while the
-	// state database is not initialized yet. It can happen that the node
-	// is initialized with an external ancient store. Commit genesis state
-	// in this case.
-	header := rawdb.ReadHeader(db, stored, 0)
-	if header.Root != types.EmptyRootHash && !triedb.Initialized(header.Root) {
-		if genesis == nil {
-			genesis = DefaultGenesisBlock()
-		}
-		applyOverrides(genesis.Config)
-		// Ensure the stored genesis matches with the given one.
-		hash := genesis.ToBlock().Hash()
-		if hash != stored {
-			return genesis.Config, hash, &GenesisMismatchError{stored, hash}
-		}
-		block, err := genesis.Commit(db, triedb)
-		if err != nil {
-			return genesis.Config, hash, err
-		}
-		return genesis.Config, block.Hash(), nil
-	}
-	// Check whether the genesis block is already written.
-	if genesis != nil {
-		applyOverrides(genesis.Config)
-		hash := genesis.ToBlock().Hash()
-		if hash != stored {
-			return genesis.Config, hash, &GenesisMismatchError{stored, hash}
-		}
-	}
-	// Get the existing chain configuration.
-	newcfg := genesis.configOrDefault(stored)
-	applyOverrides(newcfg)
-	if err := newcfg.CheckConfigForkOrder(); err != nil {
-		return newcfg, common.Hash{}, err
-	}
-	storedcfg := rawdb.ReadChainConfig(db, stored)
-	if storedcfg == nil {
-		log.Warn("Found genesis block without chain config")
-		rawdb.WriteChainConfig(db, stored, newcfg)
-		return newcfg, stored, nil
-	}
-	storedData, _ := json.Marshal(storedcfg)
-	// Special case: if a private network is being used (no genesis and also no
-	// mainnet hash in the database), we must not apply the `configOrDefault`
-	// chain config as that would be AllProtocolChanges (applying any new fork
-	// on top of an existing private network genesis block). In that case, only
-	// apply the overrides.
-	if genesis == nil && stored != params.MainnetGenesisHash {
-		newcfg = storedcfg
-		applyOverrides(newcfg)
-	}
-	// Check config compatibility and write the config. Compatibility errors
-	// are returned to the caller unless we're already at block zero.
-	head := rawdb.ReadHeadHeader(db)
-	if head == nil {
-		return newcfg, stored, errors.New("missing head header")
-	}
-	compatErr := storedcfg.CheckCompatible(newcfg, head.Number.Uint64(), head.Time)
-	if compatErr != nil && ((head.Number.Uint64() != 0 && compatErr.RewindToBlock != 0) || (head.Time != 0 && compatErr.RewindToTime != 0)) {
-		return newcfg, stored, compatErr
-	}
-	// Don't overwrite if the old is identical to the new
-	if newData, _ := json.Marshal(newcfg); !bytes.Equal(storedData, newData) {
-		rawdb.WriteChainConfig(db, stored, newcfg)
-	}
-	return newcfg, stored, nil
+	return genesis.Config, block.Hash(), nil
+	// }
+	// // The genesis block is present(perhaps in ancient database) while the
+	// // state database is not initialized yet. It can happen that the node
+	// // is initialized with an external ancient store. Commit genesis state
+	// // in this case.
+	// header := rawdb.ReadHeader(db, stored, 0)
+	// if header.Root != types.EmptyRootHash && !triedb.Initialized(header.Root) {
+	// 	if genesis == nil {
+	// 		genesis = DefaultGenesisBlock()
+	// 	}
+	// 	applyOverrides(genesis.Config)
+	// 	// Ensure the stored genesis matches with the given one.
+	// 	hash := genesis.ToBlock().Hash()
+	// 	if hash != stored {
+	// 		return genesis.Config, hash, &GenesisMismatchError{stored, hash}
+	// 	}
+	// 	block, err := genesis.Commit(db, triedb)
+	// 	if err != nil {
+	// 		return genesis.Config, hash, err
+	// 	}
+	// 	return genesis.Config, block.Hash(), nil
+	// }
+	// // Check whether the genesis block is already written.
+	// if genesis != nil {
+	// 	applyOverrides(genesis.Config)
+	// 	hash := genesis.ToBlock().Hash()
+	// 	if hash != stored {
+	// 		return genesis.Config, hash, &GenesisMismatchError{stored, hash}
+	// 	}
+	// }
+	// // Get the existing chain configuration.
+	// newcfg := genesis.configOrDefault(stored)
+	// applyOverrides(newcfg)
+	// if err := newcfg.CheckConfigForkOrder(); err != nil {
+	// 	return newcfg, common.Hash{}, err
+	// }
+	// storedcfg := rawdb.ReadChainConfig(db, stored)
+	// if storedcfg == nil {
+	// 	log.Warn("Found genesis block without chain config")
+	// 	rawdb.WriteChainConfig(db, stored, newcfg)
+	// 	return newcfg, stored, nil
+	// }
+	// storedData, _ := json.Marshal(storedcfg)
+	// // Special case: if a private network is being used (no genesis and also no
+	// // mainnet hash in the database), we must not apply the `configOrDefault`
+	// // chain config as that would be AllProtocolChanges (applying any new fork
+	// // on top of an existing private network genesis block). In that case, only
+	// // apply the overrides.
+	// if genesis == nil && stored != params.MainnetGenesisHash {
+	// 	newcfg = storedcfg
+	// 	applyOverrides(newcfg)
+	// }
+	// // Check config compatibility and write the config. Compatibility errors
+	// // are returned to the caller unless we're already at block zero.
+	// head := rawdb.ReadHeadHeader(db)
+	// if head == nil {
+	// 	return newcfg, stored, errors.New("missing head header")
+	// }
+	// compatErr := storedcfg.CheckCompatible(newcfg, head.Number.Uint64(), head.Time)
+	// if compatErr != nil && ((head.Number.Uint64() != 0 && compatErr.RewindToBlock != 0) || (head.Time != 0 && compatErr.RewindToTime != 0)) {
+	// 	return newcfg, stored, compatErr
+	// }
+	// // Don't overwrite if the old is identical to the new
+	// if newData, _ := json.Marshal(newcfg); !bytes.Equal(storedData, newData) {
+	// 	rawdb.WriteChainConfig(db, stored, newcfg)
+	// }
+	// return newcfg, stored, nil
 }
 
 // LoadChainConfig loads the stored chain config if it is already present in
@@ -633,3 +632,4 @@ func decodePrealloc(data string) types.GenesisAlloc {
 	}
 	return ga
 }
+
